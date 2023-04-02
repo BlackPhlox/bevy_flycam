@@ -4,15 +4,16 @@ use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 // From bevy examples:
 // https://github.com/bevyengine/bevy/blob/latest/examples/3d/3d_scene.rs
 
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[derive(States, PartialEq, Eq, Debug, Clone, Hash, Default)]
 enum ScrollType {
+    #[default]
     MovementSpeed,
     Zoom,
 }
 
 fn main() {
     App::new()
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .add_plugins(DefaultPlugins)
         //NoCameraPlayerPlugin as we provide the camera
         .add_plugin(NoCameraPlayerPlugin)
@@ -20,7 +21,7 @@ fn main() {
             ..Default::default()
         })
         // Setting initial state
-        .add_state(ScrollType::MovementSpeed)
+        .add_state::<ScrollType>()
         .add_startup_system(setup)
         .add_system(switch_scroll_type)
         .add_system(scroll)
@@ -35,7 +36,10 @@ fn setup(
 ) {
     // plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane {
+            size: 5.0,
+            ..Default::default()
+        })),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..Default::default()
     });
@@ -72,13 +76,13 @@ fn switch_scroll_type(
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Z) {
-        let result = match scroll_type.current() {
+        let result = match scroll_type.0 {
             ScrollType::MovementSpeed => ScrollType::Zoom,
             ScrollType::Zoom => ScrollType::MovementSpeed,
         };
 
         println!("{:?}", result);
-        scroll_type.set(result);
+        scroll_type.0 = result;
     }
 }
 
@@ -90,7 +94,7 @@ fn scroll(
     mut query: Query<(&FlyCam, &mut Projection)>,
 ) {
     for event in mouse_wheel_events.iter() {
-        if *scroll_type.current() == ScrollType::MovementSpeed {
+        if scroll_type.0 == ScrollType::MovementSpeed {
             settings.speed = (settings.speed + event.y * 0.1).abs();
             println!("Speed: {:?}", settings.speed);
         } else {
